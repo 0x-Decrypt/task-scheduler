@@ -185,6 +185,7 @@ dist/
 *.msi
 *.app
 *.AppImage
+*.snap
 
 # Runtime files
 *.pid

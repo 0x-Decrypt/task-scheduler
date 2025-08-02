@@ -43,6 +43,7 @@
         "from": "backend/",
         "to": "backend/"
       }
-    ]
+    ],
+    "publish": null
   }
 }
