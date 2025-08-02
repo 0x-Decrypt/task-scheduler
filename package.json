@@ -1,0 +1,48 @@
+{
+  "name": "task-scheduler",
+  "version": "1.0.0",
+  "description": "A simple, intuitive Task Scheduler - cron-like job scheduler with GUI and notifications",
+  "main": "frontend/src/main.js",
+  "author": "0x-Decrypt",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0x-Decrypt/task-scheduler.git"
+  },
+  "scripts": {
+    "start": "electron frontend/src/main.js",
+    "dev": "electron frontend/src/main.js --dev",
+    "build": "electron-builder",
+    "backend": "cd backend && python -m uvicorn api.main:app --reload",
+    "install-backend": "cd backend && pip install -r requirements.txt",
+    "test": "pytest backend/tests/",
+    "lint": "eslint frontend/src/"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.6.4",
+    "eslint": "^8.55.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.2"
+  },
+  "build": {
+    "appId": "com.0x-decrypt.task-scheduler",
+    "productName": "Task Scheduler",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "frontend/**/*",
+      "backend/**/*",
+      "!backend/.venv",
+      "!backend/__pycache__"
+    ],
+    "extraResources": [
+      {
+        "from": "backend/",
+        "to": "backend/"
+      }
+    ]
+  }
+}

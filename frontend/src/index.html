@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Scheduler</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="app-title">
+                    <span class="icon">⏰</span>
+                    Task Scheduler
+                </h1>
+                <div class="header-actions">
+                    <button id="newTaskBtn" class="btn btn-primary">
+                        <span>➕</span> New Task
+                    </button>
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <span>🔄</span> Refresh
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav">
+                    <a href="#" class="nav-item active" data-tab="tasks">
+                        <span>📋</span> Tasks
+                    </a>
+                    <a href="#" class="nav-item" data-tab="history">
+                        <span>📊</span> History
+                    </a>
+                    <a href="#" class="nav-item" data-tab="settings">
+                        <span>⚙️</span> Settings
+                    </a>
+                </nav>
+            </aside>
+
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Tasks Tab -->
+                <div id="tasksTab" class="tab-content active">
+                    <div class="tab-header">
+                        <h2>Task Management</h2>
+                        <div class="filter-controls">
+                            <select id="statusFilter" class="filter-select">
+                                <option value="all">All Tasks</option>
+                                <option value="enabled">Enabled Only</option>
+                                <option value="disabled">Disabled Only</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="tasksList" class="tasks-list">
+                        <div class="loading">Loading tasks...</div>
+                    </div>
+                </div>
+
+                <!-- History Tab -->
+                <div id="historyTab" class="tab-content">
+                    <div class="tab-header">
+                        <h2>Execution History</h2>
+                    </div>
+                    
+                    <div id="historyList" class="history-list">
+                        <div class="loading">Loading history...</div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div id="settingsTab" class="tab-content">
+                    <div class="tab-header">
+                        <h2>Settings</h2>
+                    </div>
+                    
+                    <div class="settings-content">
+                        <div class="setting-group">
+                            <h3>Notifications</h3>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="enableNotifications" checked>
+                                Enable system notifications
+                            </label>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h3>Theme</h3>
+                            <select id="themeSelect" class="setting-select">
+                                <option value="light">Light</option>
+                                <option value="dark">Dark</option>
+                                <option value="auto">Auto</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Task Creation/Editing -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Create New Task</h3>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            
+            <form id="taskForm" class="modal-body">
+                <div class="form-group">
+                    <label for="taskName">Task Name *</label>
+                    <input type="text" id="taskName" required maxlength="255">
+                </div>
+                
+                <div class="form-group">
+                    <label for="taskDescription">Description</label>
+                    <textarea id="taskDescription" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="taskCommand">Command *</label>
+                    <input type="text" id="taskCommand" required 
+                           placeholder="e.g., python script.py or echo 'Hello World'">
+                </div>
+                
+                <div class="form-group">
+                    <label for="scheduleType">Schedule Type *</label>
+                    <select id="scheduleType" required>
+                        <option value="">Select schedule type</option>
+                        <option value="cron">Cron Expression</option>
+                        <option value="interval">Interval</option>
+                        <option value="once">One Time</option>
+                        <option value="startup">On Startup</option>
+                    </select>
+                </div>
+                
+                <!-- Schedule Configuration -->
+                <div id="cronConfig" class="schedule-config" style="display: none;">
+                    <div class="form-group">
+                        <label for="cronExpression">Cron Expression *</label>
+                        <input type="text" id="cronExpression" 
+                               placeholder="0 0 * * * (minute hour day month day_of_week)">
+                        <small class="form-help">
+                            Examples: "0 9 * * *" (daily at 9 AM), "0 0 * * 0" (weekly on Sunday)
+                        </small>
+                    </div>
+                </div>
+                
+                <div id="intervalConfig" class="schedule-config" style="display: none;">
+                    <div class="interval-inputs">
+                        <div class="form-group">
+                            <label for="intervalHours">Hours</label>
+                            <input type="number" id="intervalHours" min="0" max="23" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="intervalMinutes">Minutes</label>
+                            <input type="number" id="intervalMinutes" min="0" max="59" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="intervalSeconds">Seconds</label>
+                            <input type="number" id="intervalSeconds" min="0" max="59" value="0">
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="onceConfig" class="schedule-config" style="display: none;">
+                    <div class="form-group">
+                        <label for="runDate">Run Date & Time *</label>
+                        <input type="datetime-local" id="runDate">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="taskTimeout">Timeout (seconds)</label>
+                        <input type="number" id="taskTimeout" min="1" max="86400" value="3600">
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="taskEnabled" checked>
+                            Enabled
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="notifySuccess">
+                            Notify on success
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="notifyFailure" checked>
+                            Notify on failure
+                        </label>
+                    </div>
+                </div>
+            </form>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                <button type="submit" form="taskForm" class="btn btn-primary" id="saveBtn">Save Task</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
