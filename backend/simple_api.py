@@ -8,17 +8,19 @@ import sqlite3
 import subprocess
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+from contextlib import asynccontextmanager
 
 # Database setup
 DB_FILE = "tasks.db"
@@ -64,17 +66,35 @@ def init_db():
     conn.commit()
     conn.close()
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan management."""
+    # Startup
+    init_db()
+    logger.info("Task Scheduler API started")
+    yield
+    # Shutdown (if needed)
+    logger.info("Task Scheduler API shutting down")
+
 # Pydantic models
 class TaskCreate(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1, description="Task name cannot be empty")
     description: Optional[str] = None
-    command: str
-    schedule_type: str
+    command: str = Field(..., min_length=1, description="Command cannot be empty")
+    schedule_type: str = Field(..., description="Must be one of: cron, interval, once, startup")
     schedule_config: Dict[str, Any]
     enabled: bool = True
     notify_on_success: bool = False
     notify_on_failure: bool = True
-    timeout: int = 3600
+    timeout: int = Field(default=3600, gt=0, description="Timeout must be greater than 0")
+    
+    @field_validator('schedule_type')
+    @classmethod
+    def validate_schedule_type(cls, v):
+        valid_types = {'cron', 'interval', 'once', 'startup'}
+        if v not in valid_types:
+            raise ValueError(f'schedule_type must be one of: {", ".join(valid_types)}')
+        return v
 
 class TaskUpdate(BaseModel):
     name: Optional[str] = None
@@ -116,7 +136,8 @@ class ExecutionResponse(BaseModel):
 app = FastAPI(
     title="Task Scheduler API",
     description="A simple task scheduler API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -127,21 +148,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-async def startup():
-    """Initialize database on startup."""
-    init_db()
-    logger.info("Task Scheduler API started")
-
 @app.get("/")
 async def root():
     """Root endpoint."""
     return {"message": "Task Scheduler API", "version": "1.0.0"}
 
 @app.get("/health")
-async def health_check():
+async def health():
     """Health check endpoint."""
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 @app.post("/tasks", response_model=TaskResponse)
 async def create_task(task: TaskCreate):
@@ -230,7 +245,7 @@ async def update_task(task_id: str, task: TaskUpdate):
         updates = []
         values = []
         
-        for field, value in task.dict(exclude_unset=True).items():
+        for field, value in task.model_dump(exclude_unset=True).items():
             if field == 'schedule_config' and value is not None:
                 updates.append(f"{field} = ?")
                 values.append(json.dumps(value))
@@ -324,7 +339,7 @@ async def run_task(task_id: str):
         
         # Create execution record
         exec_id = str(uuid4())
-        started_at = datetime.utcnow().isoformat()
+        started_at = datetime.now(timezone.utc).isoformat()
         
         cursor.execute("""
             INSERT INTO executions (id, task_id, status, started_at)
@@ -345,7 +360,7 @@ async def run_task(task_id: str):
                 timeout=timeout
             )
             
-            completed_at = datetime.utcnow().isoformat()
+            completed_at = datetime.now(timezone.utc).isoformat()
             status = "success" if process.returncode == 0 else "failed"
             
             cursor.execute("""
@@ -365,7 +380,7 @@ async def run_task(task_id: str):
                 SET status = ?, completed_at = ?, error_message = ?
                 WHERE id = ?
             """, (
-                "failed", datetime.utcnow().isoformat(),
+                "failed", datetime.now(timezone.utc).isoformat(),
                 f"Task timed out after {timeout} seconds",
                 exec_id
             ))
@@ -376,7 +391,7 @@ async def run_task(task_id: str):
                 SET status = ?, completed_at = ?, error_message = ?
                 WHERE id = ?
             """, (
-                "failed", datetime.utcnow().isoformat(), str(e), exec_id
+                "failed", datetime.now(timezone.utc).isoformat(), str(e), exec_id
             ))
         
         conn.commit()

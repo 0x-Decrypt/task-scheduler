@@ -212,3 +212,4 @@ docs/build/
 
 # Additional exclusions for clean repository
 __pycache__/
+package-lock.json
